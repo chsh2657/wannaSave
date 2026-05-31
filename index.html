@@ -12,6 +12,7 @@
         <nav class="navbar">
             <div class="nav-tabs">
                 <button class="nav-btn active" data-tab="dashboard">📊 대시보드</button>
+                <button class="nav-btn" data-tab="calendar">📅 달력 뷰</button>
                 <button class="nav-btn" data-tab="camera">📷 카메라 등록</button>
                 <button class="nav-btn" data-tab="manual">✏️ 수동 입력</button>
                 <button class="nav-btn" data-tab="settings">⚙️ API 설정</button>
@@ -68,7 +69,44 @@
                 </div>
             </section>
 
-            <!-- 2. 카메라 등록 탭 -->
+            <!-- 2. 달력 뷰 탭 -->
+            <section id="calendar" class="tab-content">
+                <div class="section-header">
+                    <h2>📅 달력 뷰</h2>
+                    <p class="sub-text">월별 지출/수입을 달력으로 한눈에 확인하세요</p>
+                </div>
+
+                <div class="calendar-section">
+                    <div class="calendar-header">
+                        <button id="calPrevMonth" class="btn btn-small">◀ 이전</button>
+                        <span id="calCurrentMonth" class="calendar-title">2026년 5월</span>
+                        <button id="calNextMonth" class="btn btn-small">다음 ▶</button>
+                    </div>
+
+                    <div class="calendar-container">
+                        <div class="calendar-weekdays">
+                            <div class="weekday">일</div>
+                            <div class="weekday">월</div>
+                            <div class="weekday">화</div>
+                            <div class="weekday">수</div>
+                            <div class="weekday">목</div>
+                            <div class="weekday">금</div>
+                            <div class="weekday">토</div>
+                        </div>
+                        <div id="calendarDays" class="calendar-days"></div>
+                    </div>
+
+                    <!-- 선택한 날짜의 거래 내역 -->
+                    <div id="calendarDetailSection" class="card" style="margin-top: 24px; display: none;">
+                        <div class="section-header">
+                            <h3 id="selectedDateTitle">2026년 5월 31일</h3>
+                        </div>
+                        <div id="calendarDayTransactions" class="transactions-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 카메라 등록 탭 -->
             <section id="camera" class="tab-content">
                 <div class="section-header">
                     <h2>📷 카메라로 지출 인식</h2>
@@ -129,7 +167,7 @@
                 </div>
             </section>
 
-            <!-- 3. 수동 입력 탭 -->
+            <!-- 4. 수동 입력 탭 -->
             <section id="manual" class="tab-content">
                 <div class="section-header">
                     <h2>✏️ 거래 수동 입력</h2>
@@ -186,7 +224,7 @@
                 </div>
             </section>
 
-            <!-- 4. API 설정 탭 -->
+            <!-- 5. API 설정 탭 -->
             <section id="settings" class="tab-content">
                 <div class="section-header">
                     <h2>⚙️ API 설정</h2>

@@ -98,6 +98,25 @@ function setupEventListeners() {
     });
     document.getElementById('importFile').addEventListener('change', handleImportData);
     document.getElementById('clearDataBtn').addEventListener('click', handleClearData);
+
+    // 달력 네비게이션
+    document.getElementById('calPrevMonth').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        renderCalendar();
+    });
+
+    document.getElementById('calNextMonth').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        renderCalendar();
+    });
 }
 
 /**
@@ -117,6 +136,11 @@ function switchTab(tabName) {
     // 선택된 탭 표시
     document.getElementById(tabName).classList.add('active');
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    // 달력 탭 렌더링
+    if (tabName === 'calendar') {
+        renderCalendar();
+    }
 }
 
 /**
@@ -231,12 +255,142 @@ function renderTransactionsList() {
 }
 
 /**
+ * 달력 렌더링
+ */
+function renderCalendar() {
+    const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+    document.getElementById('calCurrentMonth').textContent = `${currentYear}년 ${monthNames[currentMonth]}`;
+
+    // 달의 첫 날과 마지막 날 계산
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+    // 모든 거래 조회
+    const allTransactions = StorageManager.getTransactions();
+
+    // 날짜별 거래 정보 구축
+    const dayTransactions = {};
+    allTransactions.forEach(t => {
+        const dateKey = t.date;
+        if (!dayTransactions[dateKey]) {
+            dayTransactions[dateKey] = { income: 0, expense: 0, transactions: [] };
+        }
+        dayTransactions[dateKey][t.type === 'income' ? 'income' : 'expense'] += t.amount;
+        dayTransactions[dateKey].transactions.push(t);
+    });
+
+    // 달력 그리기
+    const calendarDaysDiv = document.getElementById('calendarDays');
+    let daysHtml = '';
+    const today = new Date();
+
+    for (let i = 0; i < 42; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateKey = date.toISOString().split('T')[0];
+
+        const isCurrentMonth = date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        const isToday = date.toDateString() === today.toDateString();
+        const trans = dayTransactions[dateKey];
+
+        let dayClass = 'calendar-day';
+        if (!isCurrentMonth) dayClass += ' other-month';
+        if (isToday) dayClass += ' today';
+
+        let amountHtml = '';
+        if (trans) {
+            if (trans.income > 0) {
+                amountHtml += `<div class="calendar-day-income">+${formatCurrencyShort(trans.income)}</div>`;
+            }
+            if (trans.expense > 0) {
+                amountHtml += `<div class="calendar-day-expense">-${formatCurrencyShort(trans.expense)}</div>`;
+            }
+        }
+
+        daysHtml += `
+            <div class="${dayClass}" onclick="selectCalendarDay('${dateKey}', this)">
+                <div class="calendar-day-dot" ${!trans ? 'style="display:none;"' : ''}></div>
+                <div class="calendar-day-number">${date.getDate()}</div>
+                <div class="calendar-day-amount">${amountHtml}</div>
+            </div>
+        `;
+    }
+
+    calendarDaysDiv.innerHTML = daysHtml;
+}
+
+/**
+ * 달력에서 날짜 선택
+ */
+function selectCalendarDay(dateKey, element) {
+    // 이전 선택 제거
+    document.querySelectorAll('.calendar-day.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+
+    // 새로 선택
+    element.classList.add('selected');
+
+    // 해당 날짜의 거래 표시
+    const allTransactions = StorageManager.getTransactions();
+    const dayTrans = allTransactions.filter(t => t.date === dateKey);
+
+    const detailSection = document.getElementById('calendarDetailSection');
+    const dayTitle = document.getElementById('selectedDateTitle');
+    const dayTransDiv = document.getElementById('calendarDayTransactions');
+
+    const date = new Date(dateKey + 'T00:00:00');
+    dayTitle.textContent = date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+    });
+
+    if (dayTrans.length > 0) {
+        const sorted = dayTrans.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const transHtml = sorted
+            .map(transaction => `
+                <div class="transaction-item ${transaction.type}">
+                    <div class="transaction-left">
+                        <div class="transaction-category">${transaction.category || '기타'}</div>
+                        <div class="transaction-description">${transaction.description || '(설명 없음)'}</div>
+                        <div class="transaction-date">${formatDate(transaction.date)}</div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div class="transaction-amount ${transaction.type}">
+                            ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
+                        </div>
+                        <div class="transaction-actions">
+                            <button class="btn-delete" onclick="deleteTransaction('${transaction.id}')" title="삭제">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            `)
+            .join('');
+        dayTransDiv.innerHTML = transHtml;
+    } else {
+        dayTransDiv.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text">이 날짜에 거래가 없습니다</div>
+            </div>
+        `;
+    }
+
+    detailSection.style.display = 'block';
+}
+
+/**
  * 거래 삭제
  */
 function deleteTransaction(id) {
     if (confirm('이 거래를 삭제하시겠습니까?')) {
         StorageManager.deleteTransaction(id);
         renderDashboard();
+        renderCalendar();
         showToast('거래가 삭제되었습니다', 'success');
     }
 }
@@ -260,6 +414,7 @@ function handleManualSubmit(e) {
     document.getElementById('entryDate').valueAsDate = new Date();
 
     renderDashboard();
+    renderCalendar();
     showToast('거래가 저장되었습니다', 'success');
 }
 
@@ -343,6 +498,7 @@ function handleSaveAnalyzed() {
     // UI 초기화
     handleRetake();
     renderDashboard();
+    renderCalendar();
     showToast('거래가 저장되었습니다', 'success');
 }
 
@@ -504,6 +660,15 @@ function formatDate(dateString) {
         month: 'short',
         day: 'numeric'
     });
+}
+
+function formatCurrencyShort(amount) {
+    if (amount >= 10000) {
+        return `${Math.floor(amount / 10000)}만`;
+    } else if (amount >= 1000) {
+        return `${Math.floor(amount / 1000)}천`;
+    }
+    return amount.toString();
 }
 
 function showToast(message, type = 'info') {
